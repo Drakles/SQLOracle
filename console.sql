@@ -1532,3 +1532,142 @@ BEGIN
   rollback;
 END;
 
+-- 45
+/*
+CREATE TABLE Funkcje
+(
+  funkcja   VARCHAR2(10)
+    CONSTRAINT funkcja_primary_key PRIMARY KEY,
+  min_myszy NUMBER(3)
+    CONSTRAINT min_myszy_check CHECK (min_myszy > 5),
+  max_myszy NUMBER(3)
+    CONSTRAINT max_myszy_check CHECK (200 > max_myszy),
+  CONSTRAINT max_myszy_min_myszy CHECK (max_myszy > min_myszy)
+);
+ */
+DROP TABLE Dodatki_extra;
+CREATE TABLE Dodatki_extra
+(
+  pseudo        VARCHAR2(15)
+    CONSTRAINT dodatki_extra_pseudo REFERENCES Kocury (pseudo),
+  dodatek_extra NUMBER(3) NOT NULL
+);
+
+CREATE OR REPLACE TRIGGER kara_dla_milus
+  BEFORE UPDATE OF PRZYDZIAL_MYSZY
+  ON KOCURY
+  FOR EACH ROW
+DECLARE
+  PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+  IF LOGIN_USER <> 'TYGRYS' AND :NEW.FUNKCJA = 'MILUSIA' AND :NEW.PRZYDZIAL_MYSZY - :OLD.PRZYDZIAL_MYSZY > 0
+  THEN
+    EXECUTE IMMEDIATE 'INSERT INTO Dodatki_extra(PSEUDO,dodatek_extra) VALUES (''' || :NEW.PSEUDO || ''',-10)';
+    EXECUTE IMMEDIATE 'COMMIT';
+  END IF;
+END;
+
+BEGIN
+  UPDATE KOCURY SET PRZYDZIAL_MYSZY = 34 WHERE pseudo = 'LOLA';
+  ROLLBACK;
+END;
+
+SELECT *
+FROM Kocury
+WHERE pseudo = 'LOLA';
+ROLLBACK;
+
+SELECT *
+FROM DODATKI_EXTRA;
+
+-- 46
+
+DROP TABLE HISTORIA_WYKROCZEN;
+
+CREATE TABLE HISTORIA_WYKROCZEN
+(
+  LOGIN            VARCHAR2(255)        NOT NULL,
+  DATA_WYKROCZENIA DATE DEFAULT sysdate NOT NULL,
+  PSEUDO           VARCHAR2(30)
+    CONSTRAINT WYKROCZENIE_PSEUDO REFERENCES KOCURY (PSEUDO),
+  OPERACJA         VARCHAR2(255)
+);
+
+CREATE OR REPLACE TRIGGER skipFunctionRestriction
+  BEFORE INSERT OR UPDATE OF przydzial_myszy,funkcja
+  ON Kocury
+  FOR EACH ROW
+DECLARE
+  pseudonim    Kocury.pseudo%TYPE;
+  przydzial    Kocury.przydzial_myszy%TYPE;
+  funkcja_kota Kocury.funkcja%TYPE;
+  operacja     VARCHAR2(255);
+
+  PROCEDURE tygrysCheck IS
+    uzytkownik VARCHAR2(255) := LOGIN_USER;
+
+    max_m Funkcje.max_myszy%TYPE;
+    min_m Funkcje.min_myszy%TYPE;
+    PRAGMA AUTONOMOUS_TRANSACTION;
+  BEGIN
+
+    SELECT funkcja INTO funkcja_kota FROM Kocury WHERE pseudo = pseudonim;
+
+    SELECT min_myszy,
+           max_myszy
+           INTO min_m, max_m
+    FROM FUNKCJE
+    WHERE FUNKCJE.FUNKCJA = funkcja_kota;
+
+    IF przydzial > max_m OR przydzial < min_m
+    THEN
+      INSERT INTO HISTORIA_WYKROCZEN (LOGIN, PSEUDO, OPERACJA)
+      VALUES (uzytkownik, pseudonim, operacja);
+      COMMIT;
+      :new.przydzial_myszy := :old.przydzial_myszy;
+      RAISE_APPLICATION_ERROR(-20105, 'Nowy przydzial myszy nie miesci sie w przedziale dla funkcji! ' ||
+                                      funkcja_kota || ' dla kota o pseudonimie: ' || pseudonim);
+    END IF;
+  END;
+
+BEGIN
+  IF INSERTING
+  THEN
+    pseudonim := :NEW.pseudo;
+    przydzial := :NEW.przydzial_myszy;
+    funkcja_kota := :NEW.FUNKCJA;
+    operacja := 'Dodawanie nowego kota z funkcja ' || funkcja_kota;
+    tygrysCheck();
+  END IF;
+  IF UPDATING
+  THEN
+    przydzial := :NEW.przydzial_myszy;
+    pseudonim := :OLD.pseudo;
+    operacja := 'Zmiana przydzialu myszy z ' || :OLD.PRZYDZIAL_MYSZY || ' na ' || :NEW.PRZYDZIAL_MYSZY;
+    tygrysCheck();
+  END IF;
+
+  EXCEPTION
+  WHEN OTHERS THEN DBMS_OUTPUT.PUT_LINE('Error ' || SQLERRM);
+END;
+
+
+BEGIN
+  UPDATE KOCURY SET PRZYDZIAL_MYSZY = 0 WHERE funkcja = 'MILUSIA';
+  ROLLBACK;
+END;
+
+SELECT *
+FROM Kocury
+WHERE pseudo = 'LOLA';
+ROLLBACK;
+
+SELECT *
+FROM HISTORIA_WYKROCZEN;
+
+UPDATE KOCURY
+SET PRZYDZIAL_MYSZY = 104
+WHERE pseudo = 'PLACEK';
+
+
+ALTER TRIGGER skipFunctionRestriction ENABLE;
