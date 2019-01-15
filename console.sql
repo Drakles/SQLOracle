@@ -641,7 +641,7 @@ FROM Kocury
 WHERE w_stadku_od = (SELECT MAX(K.w_stadku_od)
                      FROM Kocury K
                      WHERE K.nr_bandy
-                       = B.nr_bandy
+                             = B.nr_bandy
                      GROUP BY K
                                 .nr_bandy)
 
@@ -655,7 +655,7 @@ FROM Kocury
 WHERE w_stadku_od = (SELECT MIN(K.w_stadku_od)
                      FROM Kocury K
                      WHERE K.nr_bandy
-                       = B.nr_bandy
+                             = B.nr_bandy
                      GROUP BY K
                                 .nr_bandy)
 
@@ -665,12 +665,12 @@ FROM Kocury
 WHERE w_stadku_od NOT IN ((SELECT MIN(K.w_stadku_od)
                            FROM Kocury K
                            WHERE K.nr_bandy
-                             = Kocury.nr_bandy
+                                   = Kocury.nr_bandy
                            GROUP BY K
                                       .nr_bandy), (SELECT MAX(K.w_stadku_od)
                                                    FROM Kocury K
                                                    WHERE K.nr_bandy
-                                                     = Kocury.nr_bandy
+                                                           = Kocury.nr_bandy
                                                    GROUP BY K
                                                               .nr_bandy))
 ORDER BY imie;
@@ -936,7 +936,7 @@ FROM (SELECT "NAZWA BANDY",
 --   34
 DECLARE
   numberOfCatFounds NUMBER       := 0;
-  functionOfCat     VARCHAR2(30) := ?;
+  functionOfCat     VARCHAR2(30) := 'MILUSIA';
 BEGIN
 
   SELECT COUNT(*) INTO numberOfCatFounds FROM Kocury WHERE funkcja = functionOfCat;
@@ -946,14 +946,14 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Nie znaleziono');
   ELSIF numberOfCatFounds > 0
   THEN
-    DBMS_OUTPUT.PUT_LINE('Znaleziono ' || functionOfCat);
+    DBMS_OUTPUT.PUT_LINE('Znaleziono:  ' || functionOfCat);
   END IF;
 
 END;
 
 -- 35
 DECLARE
-  requestedCatPseudo VARCHAR2(30) := 'ZERO';
+  requestedCatPseudo VARCHAR2(30) := 'TYGRYS';
   totalMouseRation   NUMBER       := 0;
   name               VARCHAR2(30);
   dateOfAddition     DATE;
@@ -1028,6 +1028,54 @@ BEGIN
   ROLLBACK;
 END;
 
+-- na nowo
+
+
+DECLARE
+  totalSumOfPrzydzialPoczatkowy NUMBER;
+  liczbaZmian                   NUMBER := 0;
+  CURSOR kotKursor IS SELECT imie,przydzial_myszy,max_myszy
+                      FROM Kocury K
+                             JOIN Funkcje F ON K.funkcja = F.funkcja
+                      ORDER BY przydzial_myszy ASC;
+  nowyPrzydzial                 NUMBER;
+  zmianCounter                  NUMBER := 0;
+BEGIN
+  <<zew>>
+    LOOP
+      FOR kot IN kotKursor
+        LOOP
+          IF totalSumOfPrzydzialPoczatkowy >= 1050 THEN
+            EXIT zew;
+          END IF;
+          SELECT SUM(przydzial_myszy) INTO totalSumOfPrzydzialPoczatkowy FROM Kocury;
+          nowyPrzydzial := ROUND(kot.przydzial_myszy * 1.1);
+
+          IF nowyPrzydzial > kot.max_myszy THEN
+            nowyPrzydzial := kot.max_myszy;
+          END IF;
+
+          IF nowyPrzydzial <> kot.przydzial_myszy THEN
+            UPDATE Kocury SET przydzial_myszy = nowyPrzydzial WHERE imie = kot.imie;
+            zmianCounter := zmianCounter + 1;
+          end if;
+
+          --           DBMS_OUTPUT.PUT_LINE(kot.imie ||' przydzial: ' ||  kot.przydzial_myszy || ' max: ' || kot.max_myszy);
+          --           DBMS_OUTPUT.PUT_LINE('Suma: ' || totalSumOfPrzydzialPoczatkowy);
+
+        END LOOP;
+    END LOOP zew;
+  DBMS_OUTPUT.PUT_LINE('Zmian: ' || zmianCounter);
+  FOR kot IN kotKursor
+    LOOP
+      DBMS_OUTPUT.PUT_LINE(kot.imie || ' przydzial: ' || kot.przydzial_myszy);
+    end loop;
+  ROLLBACK;
+END;
+
+ROLLBACK;
+
+
 -- 37
 DECLARE
   CURSOR kotKursor IS SELECT pseudo,przydzial_myszy,myszy_extra
@@ -1049,12 +1097,30 @@ BEGIN
     END LOOP;
 END;
 
+-- na nowo
+DECLARE CURSOR najKotKur IS SELECT pseudo,przydzial_myszy,myszy_extra
+                            FROM Kocury
+                            ORDER BY (NVL(przydzial_myszy, 0) +
+                                      NVL(myszy_extra, 0)) DESC;
+  counter NUMBER := 0;
+BEGIN
+  FOR kot IN najKotKur
+    LOOP
+      IF counter = 5 THEN
+        EXIT;
+      END IF;
+      DBMS_OUTPUT.PUT_LINE(kot.pseudo || ' ' || (kot.przydzial_myszy + kot.myszy_extra));
+      counter := counter + 1;
+    end loop;
+END;
+
+
 -- 38
 DECLARE
   CURSOR kotKursor IS SELECT imie,funkcja,szef
                       FROM Kocury
                       WHERE funkcja IN ('MILUSIA', 'KOT');
-  szefNumber       NUMBER := ?;
+  szefNumber       NUMBER := 2;
   aktualnySzef     KOCURY.SZEF%TYPE;
   imieAktualnySzef KOCURY.IMIE%TYPE;
 
@@ -1078,38 +1144,57 @@ BEGIN
           SELECT imie, szef into imieAktualnySzef, aktualnySzef FROM KOCURY WHERE PSEUDO = aktualnySzef;
           DBMS_OUTPUT.PUT(RPAD(imieAktualnySzef, 10));
         end loop;
-      dbms_output.new_line();
+      DBMS_OUTPUT.new_line();
     end loop;
 END;
+
+-- na nowo
+
+DECLARE
+  CURSOR milsuie IS SELECT imie,szef
+                    FROM Kocury
+                    WHERE Kocury.funkcja = 'MILUSIA';
+
+BEGIN
+
+
+END;
+
 
 -- 39
 DECLARE
   CURSOR bandyTerenKursor IS SELECT nr_bandy,nazwa,teren
                              FROM Bandy;
   nrBandy      NUMBER       := 0;
-  nazwaBandy   VARCHAR2(20) := 'Dupna ';
-  terenBandy   VARCHAR2(15) := 'Dupneeee';
+  nazwaBandy   VARCHAR2(20) := 'Dziadostwo';
+  terenBandy   VARCHAR2(15) := 'Strych';
   errorMesage  VARCHAR2(50) := '';
   errorCounter NUMBER       := 0;
 
   NIEPOPRAWNE_DANE EXCEPTION;
+  WRONG_NR_BANDY EXCEPTION;
 
 BEGIN
-  FOR banda IN bandyTerenKursor
-    LOOP
-      IF banda.nr_bandy = nrBandy THEN
-        errorMesage := errorMesage || nrBandy || ', ';
-        errorCounter := errorCounter + 1;
-      end if;
-      IF banda.nazwa = nazwaBandy THEN
-        errorMesage := errorMesage || nazwaBandy || ', ';
-        errorCounter := errorCounter + 1;
-      end if;
-      IF banda.teren = terenBandy THEN
-        errorMesage := errorMesage || terenBandy || ', ';
-        errorCounter := errorCounter + 1;
-      end if;
-    end loop;
+  IF nrBandy <= 0 THEN
+    errorMesage := 'Numer nie może być równy lub mniejszy od 0, ';
+    RAISE WRONG_NR_BANDY;
+  ELSE
+    FOR banda IN bandyTerenKursor
+      LOOP
+        IF banda.nr_bandy = nrBandy THEN
+          errorMesage := errorMesage || nrBandy || ', ';
+          errorCounter := errorCounter + 1;
+        end if;
+        IF banda.nazwa = nazwaBandy THEN
+          errorMesage := errorMesage || nazwaBandy || ', ';
+          errorCounter := errorCounter + 1;
+        end if;
+        IF banda.teren = terenBandy THEN
+          errorMesage := errorMesage || terenBandy || ', ';
+          errorCounter := errorCounter + 1;
+        end if;
+      end loop;
+  end if;
   IF errorCounter > 0 THEN
     RAISE NIEPOPRAWNE_DANE;
   end if;
@@ -1117,43 +1202,54 @@ BEGIN
   INSERT INTO Bandy VALUES (nrBandy, nazwaBandy, terenBandy, NULL);
   ROLLBACK;
   EXCEPTION
+  WHEN WRONG_NR_BANDY THEN DBMS_OUTPUT.PUT_LINE(errorMesage);
   WHEN NIEPOPRAWNE_DANE THEN DBMS_OUTPUT.PUT_LINE(errorMesage || ': już istnieje');
   WHEN OTHERS THEN DBMS_OUTPUT.PUT_LINE('Inny error ' || SQLERRM);
 
 END;
 
 -- 40
-CREATE OR REPLACE PROCEDURE DodajBande(nrBandy number, nazwaBandy varchar2, terenBandy varchar2) AS
-  CURSOR bandyTerenKursor IS SELECT nr_bandy,nazwa,teren
-                             FROM Bandy;
+CREATE
+  OR
+  REPLACE PROCEDURE DodajBande(nrBandy number, nazwaBandy varchar2, terenBandy varchar2) AS
+  CURSOR bandyTerenKursor IS
+    SELECT nr_bandy,nazwa,teren
+    FROM Bandy;
   errorMesage VARCHAR2(50) := '';
   errorCounter NUMBER := 0;
 
   NIEPOPRAWNE_DANE EXCEPTION;
+  WRONG_NR_BANDY EXCEPTION;
 
 BEGIN
-  FOR banda IN bandyTerenKursor
-    LOOP
-      IF banda.nr_bandy = nrBandy THEN
-        errorMesage := errorMesage || nrBandy || ', ';
-        errorCounter := errorCounter + 1;
-      end if;
-      IF banda.nazwa = nazwaBandy THEN
-        errorMesage := errorMesage || nazwaBandy || ', ';
-        errorCounter := errorCounter + 1;
-      end if;
-      IF banda.teren = terenBandy THEN
-        errorMesage := errorMesage || terenBandy || ', ';
-        errorCounter := errorCounter + 1;
-      end if;
-    end loop;
+  IF nrBandy <= 0 THEN
+    errorMesage := 'Numer nie może być równy lub mniejszy od 0, ';
+    RAISE WRONG_NR_BANDY;
+  ELSE
+    FOR banda IN bandyTerenKursor
+      LOOP
+        IF banda.nr_bandy = nrBandy THEN
+          errorMesage := errorMesage || nrBandy || ', ';
+          errorCounter := errorCounter + 1;
+        end if;
+        IF banda.nazwa = nazwaBandy THEN
+          errorMesage := errorMesage || nazwaBandy || ', ';
+          errorCounter := errorCounter + 1;
+        end if;
+        IF banda.teren = terenBandy THEN
+          errorMesage := errorMesage || terenBandy || ', ';
+          errorCounter := errorCounter + 1;
+        end if;
+      end loop;
+  end if;
   IF errorCounter > 0 THEN
     RAISE NIEPOPRAWNE_DANE;
   end if;
 
   INSERT INTO Bandy VALUES (nrBandy, nazwaBandy, terenBandy, NULL);
-
+  --   ROLLBACK;
   EXCEPTION
+  WHEN WRONG_NR_BANDY THEN DBMS_OUTPUT.PUT_LINE(errorMesage);
   WHEN NIEPOPRAWNE_DANE THEN DBMS_OUTPUT.PUT_LINE(errorMesage || ': już istnieje');
   WHEN OTHERS THEN DBMS_OUTPUT.PUT_LINE('Inny error ' || SQLERRM);
 
@@ -1165,13 +1261,16 @@ FROM Bandy;
 rollback;
 
 BEGIN
-  DodajBande(nrBandy=>10, nazwaBandy=>'dup1a', terenBandy=>'Wr1oclaw');
-  --   rollback;
+  DodajBande(nrBandy=>10, nazwaBandy=>'SZEFOSTWO', terenBandy=>'POLE');
+  ROLLBACK;
 end;
 
 -- 41
-CREATE OR REPLACE TRIGGER zawszeOJedenWiekszyNumerBandy
-  BEFORE INSERT
+CREATE
+  OR
+  REPLACE TRIGGER zawszeOJedenWiekszyNumerBandy
+  BEFORE
+    INSERT
   ON Bandy
   FOR EACH ROW
 DECLARE
@@ -1181,9 +1280,25 @@ BEGIN
   :NEW.nr_bandy := maxNumerBandy + 1;
 end;
 
--- 42
 
-CREATE OR REPLACE PACKAGE wirusPakiet AS
+declare
+  numerNowejBandy   NUMBER       := 10;
+  nazwaNowejBandy   VARCHAR2(20) := 'Dziadostwo';
+  terenNowejBandy   VARCHAR2(15) := 'Strych';
+  nrBandyWstawionej NUMBER;
+
+begin
+  DodajBande(nrBandy=>numerNowejBandy, nazwaBandy=>nazwaNowejBandy, terenBandy=>terenNowejBandy);
+  SELECT nr_bandy INTO numerNowejBandy FROM Bandy WHERE nazwa = nazwaNowejBandy;
+  DBMS_OUTPUT.PUT_LINE(numerNowejBandy);
+  rollback;
+end;
+
+
+-- 42
+  CREATE
+  OR
+  REPLACE PACKAGE wirusPakiet AS
   przydzialTygrysa NUMBER;
   przydzialTygrysaMyszExtra NUMBER;
   ukarzNagrodzTygrysa NUMBER DEFAULT 0;
@@ -1195,7 +1310,7 @@ CREATE OR REPLACE TRIGGER setPrzydzialTygrysaInWirus
 BEGIN
   SELECT przydzial_myszy INTO wirusPakiet.przydzialTygrysa FROM Kocury WHERE pseudo = 'TYGRYS';
   SELECT myszy_extra INTO wirusPakiet.przydzialTygrysaMyszExtra FROM Kocury WHERE pseudo = 'TYGRYS';
-end;
+END;
 
 CREATE OR REPLACE TRIGGER wirus
   BEFORE UPDATE OF przydzial_myszy
@@ -1258,6 +1373,8 @@ UPDATE Kocury
 SET przydzial_myszy = przydzial_myszy + 11
 WHERE pseudo = 'LOLA';
 
+ROLLBACK;
+
 SELECT *
 FROM Kocury
 WHERE pseudo = 'LOLA'
@@ -1268,6 +1385,8 @@ ROLLBACK;
 ALTER TRIGGER ukarz_lub_nagrodz_tygrysa DISABLE;
 ALTER TRIGGER wirus DISABLE;
 ALTER TRIGGER setPrzydzialTygrysaInWirus DISABLE;
+ALTER TRIGGER compundWirus DISABLE;
+ALTER TRIGGER skipFunctionRestriction DISABLE;
 
 -- 42 compound
 CREATE OR REPLACE TRIGGER compundWirus
@@ -1344,8 +1463,6 @@ WHERE pseudo = 'LOLA'
 
 ROLLBACK;
 
-ALTER TRIGGER compundWirus DISABLE;
-
 UPDATE KOCURY
 SET przydzial_myszy = przydzial_myszy - 5
 WHERE pseudo = 'LOLA';
@@ -1401,8 +1518,7 @@ BEGIN
         LOOP
           SELECT SUM(CASE
                        WHEN Kocury.funkcja = funkcjaIter.funkcja THEN NVL(przydzial_myszy, 0) + NVL(myszy_extra, 0)
-                       ELSE 0 END)
-                 INTO sumaFunkcjaBandaPlec
+                       ELSE 0 END) INTO sumaFunkcjaBandaPlec
           FROM Kocury
           WHERE Kocury.nr_bandy = banda.nr_bandy
             AND Kocury.plec = banda.plec;
@@ -1428,8 +1544,7 @@ BEGIN
     LOOP
       SELECT SUM(CASE
                    WHEN Kocury.funkcja = funkcjaIter.funkcja THEN NVL(przydzial_myszy, 0) + NVL(myszy_extra, 0)
-                   ELSE 0 END)
-             INTO sumFunkcja
+                   ELSE 0 END) INTO sumFunkcja
       FROM Kocury;
       DBMS_OUTPUT.PUT(RPAD(sumFunkcja, 15));
     end loop;
@@ -1533,19 +1648,8 @@ BEGIN
 END;
 
 -- 45
-/*
-CREATE TABLE Funkcje
-(
-  funkcja   VARCHAR2(10)
-    CONSTRAINT funkcja_primary_key PRIMARY KEY,
-  min_myszy NUMBER(3)
-    CONSTRAINT min_myszy_check CHECK (min_myszy > 5),
-  max_myszy NUMBER(3)
-    CONSTRAINT max_myszy_check CHECK (200 > max_myszy),
-  CONSTRAINT max_myszy_min_myszy CHECK (max_myszy > min_myszy)
-);
- */
 DROP TABLE Dodatki_extra;
+
 CREATE TABLE Dodatki_extra
 (
   pseudo        VARCHAR2(15)
@@ -1558,12 +1662,12 @@ CREATE OR REPLACE TRIGGER kara_dla_milus
   ON KOCURY
   FOR EACH ROW
 DECLARE
-  PRAGMA AUTONOMOUS_TRANSACTION;
+  --   PRAGMA AUTONOMOUS_TRANSACTION;
 BEGIN
   IF LOGIN_USER <> 'TYGRYS' AND :NEW.FUNKCJA = 'MILUSIA' AND :NEW.PRZYDZIAL_MYSZY - :OLD.PRZYDZIAL_MYSZY > 0
   THEN
     EXECUTE IMMEDIATE 'INSERT INTO Dodatki_extra(PSEUDO,dodatek_extra) VALUES (''' || :NEW.PSEUDO || ''',-10)';
-    EXECUTE IMMEDIATE 'COMMIT';
+    --     EXECUTE IMMEDIATE 'COMMIT';
   END IF;
 END;
 
@@ -1581,7 +1685,6 @@ SELECT *
 FROM DODATKI_EXTRA;
 
 -- 46
-
 DROP TABLE HISTORIA_WYKROCZEN;
 
 CREATE TABLE HISTORIA_WYKROCZEN
@@ -1608,7 +1711,7 @@ DECLARE
 
     max_m Funkcje.max_myszy%TYPE;
     min_m Funkcje.min_myszy%TYPE;
-    PRAGMA AUTONOMOUS_TRANSACTION;
+    --     PRAGMA AUTONOMOUS_TRANSACTION;
   BEGIN
 
     SELECT funkcja INTO funkcja_kota FROM Kocury WHERE pseudo = pseudonim;
@@ -1623,7 +1726,7 @@ DECLARE
     THEN
       INSERT INTO HISTORIA_WYKROCZEN (LOGIN, PSEUDO, OPERACJA)
       VALUES (uzytkownik, pseudonim, operacja);
-      COMMIT;
+      --       COMMIT;
       :new.przydzial_myszy := :old.przydzial_myszy;
       RAISE_APPLICATION_ERROR(-20105, 'Nowy przydzial myszy nie miesci sie w przedziale dla funkcji! ' ||
                                       funkcja_kota || ' dla kota o pseudonimie: ' || pseudonim);
@@ -1670,4 +1773,344 @@ SET PRZYDZIAL_MYSZY = 104
 WHERE pseudo = 'PLACEK';
 
 
-ALTER TRIGGER skipFunctionRestriction ENABLE;
+-- Zad 47
+
+/*
+Założyć, że w stadzie kotów pojawił się podział na elitę i na plebs.
+
+ Członek elity posiadał prawo do jednego sługi
+ wybranego spośród plebsu.
+
+  Dodatkowo mógł gromadzić myszy na dostępnym dla każdego członka elity koncie. Konto ma
+ zawierać dane o dacie wprowadzenia na nie pojedynczej myszy i o dacie jej usunięcia. O tym, do kogo należy mysz ma
+ mówić odniesienie do jej właściciela z elity.
+
+  Przyjmując te dodatkowe założenia zdefiniować schemat bazy danych kotów
+ (bez odpowiedników relacji Funkcje, Bandy, Wrogowie) w postaci relacyjno-obiektowej, gdzie dane dotyczące kotów, elity,
+  plebsu. kont, incydentów będą określane przez odpowiednie typy obiektowe. Dla każdego z typów zaproponować i
+  zdefiniować przykładowe metody.
+
+   Powiązania referencyjne należy zdefiniować za pomocą typów odniesienia.
+
+    Tak przygotowany schemat wypełnić danymi z rzeczywistości kotów (dane do opisu elit, plebsu i kont zaproponować
+  samodzielnie) a następnie wykonać przykładowe zapytania SQL, operujące na rozszerzonym schemacie bazy,
+  wykorzystujące referencje (jako realizacje złączeń), podzapytania, grupowanie oraz metody zdefiniowane w ramach typów.
+
+   Dla każdego z mechanizmów (referencja, podzapytanie, grupowanie) należy przedstawić jeden taki przykład.
+    Zrealizować dodatkowo, w ramach nowego, relacyjno-obiektowego schematu, po dwa wybrane zadania z list nr 2 i 3.
+ */
+
+
+--wykorzystujac relacje z obiektami wierszowymi
+
+-- szef też referencją
+
+/*
+ZDEFINIOWAC koty, elity, plebs, konta, incydenty
+ */
+
+DROP TABLE KOT_OBJ;
+DROP TABLE ELITA_OBJ;
+DROP TABLE PLEBS_OBJ;
+DROP TABLE KONTO_OBJ;
+DROP TABLE INCYDENT_OBJ;
+
+DROP TYPE KONTO_TYPE;
+DROP TYPE INCYDENT_TYPE;
+DROP TYPE KOT_ELITA_TYPE;
+DROP TYPE KOT_PLEBS_TYPE;
+DROP TYPE KOT_TYPE;
+
+
+CREATE OR REPLACE TYPE KOT_TYPE AS OBJECT
+(
+  imie            VARCHAR2(15),
+  plec            VARCHAR2(1),
+  pseudo          VARCHAR2(15),
+  funkcja         VARCHAR2(10),
+  szef            REF KOT_TYPE,
+  w_statku_od     DATE,
+  przydzial_myszy NUMBER(3),
+  myszy_extra     NUMBER(3),
+  nr_bandy        NUMBER(2),
+
+  MEMBER FUNCTION get_sum_myszy RETURN NUMBER,
+  MEMBER FUNCTION get_szef_pseudo RETURN VARCHAR2
+);
+
+CREATE OR REPLACE TYPE KOT_PLEBS_TYPE AS OBJECT
+(
+id_plebs NUMBER(3),
+kocur    REF KOT_TYPE,
+MEMBER FUNCTION get_total_elita_number RETURN NUMBER
+);
+
+CREATE OR REPLACE TYPE KOT_ELITA_TYPE AS OBJECT
+(
+  id_elita NUMBER(3),
+  kocur    REF KOT_TYPE,
+  sluga    REF KOT_PLEBS_TYPE,
+  MEMBER FUNCTION get_sluga_pseudo RETURN VARCHAR2
+);
+
+CREATE OR REPLACE TYPE KONTO_TYPE AS OBJECT
+(
+  id_konta          NUMBER(3),
+  wlasciciel        REF KOT_ELITA_TYPE,
+  data_wprowadzenia DATE,
+  data_usuniecia    DATE,
+  MEMBER FUNCTION get_wlasciciel_pseudo RETURN VARCHAR2
+);
+
+CREATE OR REPLACE TYPE INCYDENT_TYPE AS OBJECT
+(
+  nr_incydentu   NUMBER(3),
+  kocur          REF KOT_TYPE,
+  imie_wroga     VARCHAR2(25),
+  data_incydentu DATE,
+  opis_incydentu VARCHAR2(50),
+  MEMBER FUNCTION get_kocur_pseudo RETURN VARCHAR2
+);
+
+
+CREATE OR REPLACE TYPE BODY KOT_TYPE IS
+  MEMBER FUNCTION get_sum_myszy RETURN NUMBER IS
+    BEGIN
+      RETURN NVL(przydzial_myszy, 0) + NVL(myszy_extra, 0);
+    END;
+
+  MEMBER FUNCTION get_szef_pseudo RETURN VARCHAR2 IS
+    pseudo_var VARCHAR2(255);
+    BEGIN
+      SELECT DEREF(szef).pseudo into pseudo_var from dual;
+      RETURN pseudo_var;
+    END;
+END;
+
+CREATE OR REPLACE TYPE BODY KOT_PLEBS_TYPE  
+
+
+-- constraints from previous tables
+/*
+CREATE TABLE Kocury
+(
+  imie            VARCHAR2(15)
+    CONSTRAINT imie_not_null NOT NULL,
+  plec            VARCHAR2(1)
+    CONSTRAINT plec_check CHECK (plec IN ('M', 'D')),
+  pseudo          VARCHAR2(15)
+    CONSTRAINT pseudo_primary_key PRIMARY KEY,
+  funkcja         VARCHAR2(10)
+    CONSTRAINT funkcja_references REFERENCES Funkcje (funkcja),
+  szef            VARCHAR2(15)
+    CONSTRAINT szef_references REFERENCES Kocury (pseudo),
+  w_stadku_od     DATE DEFAULT SYSDATE,
+  przydzial_myszy NUMBER(3),
+  myszy_extra     NUMBER(3),
+  nr_bandy        NUMBER(2)
+    CONSTRAINT nr_bandy_references REFERENCES Bandy (nr_bandy)
+);
+ */
+
+CREATE TABLE KOT_OBJ OF KOT_TYPE(
+  CONSTRAINT obj_pk_kocury PRIMARY KEY(pseudo),
+  CONSTRAINT obj_req_kocury CHECK(imie IS NOT NULL),
+  CONSTRAINT obj_check_kocury CHECK (plec IN ('M', 'D')),
+  CONSTRAINT obj_fk_szef szef SCOPE IS KOT_OBJ
+  );
+
+CREATE TABLE PLEBS_OBJ OF KOT_PLEBS_TYPE (
+  CONSTRAINT obj_pk_plebs PRIMARY KEY (id_plebs),
+  CONSTRAINT obj_fk_plebs_KOCUR kocur SCOPE IS KOT_OBJ
+  );
+
+CREATE TABLE ELITA_OBJ OF KOT_ELITA_TYPE (
+  CONSTRAINT obj_pk_elita PRIMARY KEY (id_elita),
+  CONSTRAINT obj_fk_sluga sluga SCOPE IS PLEBS_OBJ,
+  CONSTRAINT obj_fk_elita_KOCUR kocur SCOPE IS KOT_OBJ
+  );
+
+CREATE TABLE KONTO_OBJ OF KONTO_TYPE (
+  CONSTRAINT obj_pk_konto PRIMARY KEY (id_konta),
+  CONSTRAINT obj_fk_konto_elita wlasciciel SCOPE IS ELITA_OBJ,
+  CONSTRAINT obj_reg_konto CHECK(data_wprowadzenia IS NOT NULL),
+  CONSTRAINT obj_reg_konto2 CHECK(data_wprowadzenia <= data_usuniecia)
+  );
+
+CREATE TABLE INCYDENT_OBJ OF INCYDENT_TYPE (
+  CONSTRAINT obj_pk_incydent PRIMARY KEY (nr_incydentu),
+  CONSTRAINT obj_req_incdyent CHECK(data_incydentu IS NOT NULL),
+  CONSTRAINT obj_fk_incydent_kocury kocur SCOPE IS KOT_OBJ
+  );
+
+
+-- inserty dla kotow
+/*
+INSERT INTO Kocury
+VALUES ('JACEK', 'M', 'PLACEK', 'LOWCZY', 'LYSY', '2008-12-01', 67, NULL, 2);
+INSERT INTO Kocury
+VALUES ('BARI', 'M', 'RURA', 'LAPACZ', 'LYSY', '2009-09-01', 56, NULL, 2);
+INSERT INTO Kocury
+VALUES ('MICKA', 'D', 'LOLA', 'MILUSIA', 'TYGRYS', '2009-10-14', 25, 47, 1);
+INSERT INTO Kocury
+VALUES ('LUCEK', 'M', 'ZERO', 'KOT', 'KURKA', '2010-03-01', 43, NULL, 3);
+INSERT INTO Kocury
+VALUES ('SONIA', 'D', 'PUSZYSTA', 'MILUSIA', 'ZOMBI', '2010-11-18', 20, 35, 3);
+INSERT INTO Kocury
+VALUES ('LATKA', 'D', 'UCHO', 'KOT', 'RAFA', '2011-01-01', 40, NULL, 4);
+INSERT INTO Kocury
+VALUES ('DUDEK', 'M', 'MALY', 'KOT', 'RAFA', '2011-05-15', 40, NULL, 4);
+INSERT INTO Kocury
+VALUES ('MRUCZEK', 'M', 'TYGRYS', 'SZEFUNIO', NULL, '2002-01-01', 103, 33, 1);
+INSERT INTO Kocury
+VALUES ('CHYTRY', 'M', 'BOLEK', 'DZIELCZY', 'TYGRYS', '2002-05-05', 50, NULL, 1);
+INSERT INTO Kocury
+VALUES ('KOREK', 'M', 'ZOMBI', 'BANDZIOR', 'TYGRYS', '2004-03-16', 75, 13, 3);
+INSERT INTO Kocury
+VALUES ('BOLEK', 'M', 'LYSY', 'BANDZIOR', 'TYGRYS', '2006-08-15', 72, 21, 2);
+INSERT INTO Kocury
+VALUES ('ZUZIA', 'D', 'SZYBKA', 'LOWCZY', 'LYSY', '2006-07-21', 65, NULL, 2);
+INSERT INTO Kocury
+VALUES ('RUDA', 'D', 'MALA', 'MILUSIA', 'TYGRYS', '2006-09-17', 22, 42, 1);
+INSERT INTO Kocury
+VALUES ('PUCEK', 'M', 'RAFA', 'LOWCZY', 'TYGRYS', '2006-10-15', 65, NULL, 4);
+INSERT INTO Kocury
+VALUES ('PUNIA', 'D', 'KURKA', 'LOWCZY', 'ZOMBI', '2008-01-01', 61, NULL, 3);
+INSERT INTO Kocury
+VALUES ('BELA', 'D', 'LASKA', 'MILUSIA', 'LYSY', '2008-02-01', 24, 28, 2);
+INSERT INTO Kocury
+VALUES ('KSAWERY', 'M', 'MAN', 'LAPACZ', 'RAFA', '2008-07-12', 51, NULL, 4);
+INSERT INTO Kocury
+VALUES ('MELA', 'D', 'DAMA', 'LAPACZ', 'RAFA', '2008-11-01', 51, NULL, 4);
+ */
+
+INSERT INTO KOT_OBJ
+VALUES (KOT_TYPE('MRUCZEK', 'M', 'TYGRYS', 'SZEFUNIO', NULL, '2002-01-01', 103, 33, 1));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('MICKA', 'D', 'LOLA', 'MILUSIA', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE
+                                                                                                                    KOCUR
+                                                                                                                      .pseudo='TYGRYS'), '2009-10-14', 25, 47, 1));
+
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('CHYTRY', 'M', 'BOLEK', 'DZIELCZY', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE
+                                                                                                                  KOCUR.pseudo='TYGRYS'), '2002-05-05', 50, NULL, 1));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('KOREK', 'M', 'ZOMBI', 'BANDZIOR', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE
+                                                                                                                 KOCUR.pseudo='TYGRYS'), '2004-03-16', 75, 13, 3));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('BOLEK', 'M', 'LYSY', 'BANDZIOR', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='TYGRYS'), '2006-08-15', 72, 21, 2));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('RUDA', 'D', 'MALA', 'MILUSIA', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='TYGRYS'), '2006-09-17', 22, 42, 1));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('PUCEK', 'M', 'RAFA', 'LOWCZY', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='TYGRYS'), '2006-10-15', 65, NULL, 4));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('SONIA', 'D', 'PUSZYSTA', 'MILUSIA', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE
+                                                                                                                   KOCUR.pseudo='ZOMBI'), '2010-11-18', 20, 35, 3));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('PUNIA', 'D', 'KURKA', 'LOWCZY', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='ZOMBI'), '2008-01-01', 61, NULL, 3));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('JACEK', 'M', 'PLACEK', 'LOWCZY', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='LYSY'), '2008-12-01', 67, NULL, 2));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('BARI', 'M', 'RURA', 'LAPACZ', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='LYSY'), '2009-09-01', 56, NULL, 2));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('ZUZIA', 'D', 'SZYBKA', 'LOWCZY', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='LYSY'), '2006-07-21', 65, NULL, 2));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('BELA', 'D', 'LASKA', 'MILUSIA', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='LYSY'), '2008-02-01', 24, 28, 2));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('LATKA', 'D', 'UCHO', 'KOT', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='RAFA'), '2011-01-01', 40, NULL, 4));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('DUDEK', 'M', 'MALY', 'KOT', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='RAFA'), '2011-05-15', 40, NULL, 4));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('KSAWERY', 'M', 'MAN', 'LAPACZ', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='RAFA'), '2008-07-12', 51, NULL, 4));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('MELA', 'D', 'DAMA', 'LAPACZ', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='RAFA'), '2008-11-01', 51, NULL, 4));
+INSERT INTO KOT_OBJ VALUES (KOT_TYPE('LUCEK', 'M', 'ZERO', 'KOT', (SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR
+  .pseudo='KURKA'), '2010-03-01', 43, NULL, 3));
+
+
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(1,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='TYGRYS'),
+  'KAZIO', '2004-10-13', 'USILOWAL NABIC NA WIDLY'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(2,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='ZOMBI'),
+  'SWAWOLNY DYZIO', '2005-03-07', 'WYBIL OKO Z PROCY'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(3,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='BOLEK'),
+  'KAZIO', '2005-03-29', 'POSZCZUL BURKIEM'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(4,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='SZYBKA'),
+  'GLUPIA ZOSKA', '2006-09-12', 'UZYLA KOTA JAKO SCIERKI'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(5,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='MALA'),
+  'CHYTRUSEK', '2007-03-07', 'ZALECAL SIE'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(6,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='TYGRYS'),
+  'DZIKI' ||
+                                                                                                               ' BILL', '2007-06-12', 'USILOWAL POZBAWIC ZYCIA'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(7,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='BOLEK'),
+  'DZIKI' ||
+                                                                                                               ' ' ||
+                                                                                                              'BILL', '2007-11-10', 'ODGRYZL UCHO'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(8,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='LASKA'),
+  'DZIKI' ||
+                                                                                                               ' ' ||
+                                                                                                              'BILL', '2008-12-12', 'POGRYZL ZE LEDWO SIE WYLIZALA'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(9,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='LASKA'),
+  'KAZIO', '2009-01-07', 'ZLAPAL ZA OGON I ZROBIL WIATRAK'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(10,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='DAMA'),
+  'KAZIO', '2009-02-07', 'CHCIAL OBEDRZEC ZE SKORY'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(11,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='MAN'),
+  'REKSIO', '2009-04-14', 'WYJATKOWO NIEGRZECZNIE OBSZCZEKAL'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(12,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='LYSY'),
+  'BETHOVEN', '2009-05-11', 'NIE PODZIELIL SIE SWOJA KASZA'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(13,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='RURA'),
+  'DZIKI' ||
+                                                                                                               ' ' ||
+                                                                                                              'BILL', '2009-09-03', 'ODGRYZL OGON'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(14,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='PLACEK'),
+  'BAZYLI', '2010-07-12', 'DZIOBIAC UNIEMOZLIWIL PODEBRANIE KURCZAKA'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(15,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='PUSZYSTA'),
+  'SMUKLA', '2010-11-19', 'OBRZUCILA SZYSZKAMI'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(16,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='KURKA'),
+  'BUREK', '2010-12-14', 'POGONIL'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(17,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='MALY'),
+  'CHYTRUSEK', '2011-07-13', 'PODEBRAL PODEBRANE JAJKA'));
+INSERT INTO INCYDENT_OBJ VALUES (INCYDENT_TYPE(18,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='UCHO'),
+  'SWAWOLNY DYZIO', '2011-07-14', 'OBRZUCIL KAMIENIAMI'));
+
+
+
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(1,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='LOLA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(2,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='BOLEK')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(3,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='MALA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(4,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='PUSZYSTA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(5,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='KURKA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(6,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='RURA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(7,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='SZYBKA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(8,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='LASKA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(9,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='UCHO')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(10,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='MALY')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(11,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='MAN')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(12,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='DAMA')));
+INSERT INTO PLEBS_OBJ VALUES (KOT_PLEBS_TYPE(13,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='ZERO')));
+
+
+-- 5 myszy o najwiekszym przydziale
+SELECT KOT.PSEUDO, KOT.PRZYDZIAL_MYSZY FROM KOT_OBJ KOT ORDER BY KOT.PRZYDZIAL_MYSZY DESC fetch first 5 rows only;
+-- TYGRYS, ZOMBI, LYSY, PLACEK, RAFA
+
+INSERT INTO ELITA_OBJ VALUES (KOT_ELITA_TYPE(1,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='TYGRYS'),
+  (SELECT REF(plebs) FROM PLEBS_OBJ plebs WHERE plebs.KOCUR.PSEUDO='LOLA')));
+INSERT INTO ELITA_OBJ VALUES (KOT_ELITA_TYPE(2,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='LYSY'),
+  (SELECT REF(plebs) FROM PLEBS_OBJ plebs WHERE plebs.KOCUR.PSEUDO='LASKA')));
+INSERT INTO ELITA_OBJ VALUES (KOT_ELITA_TYPE(3,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='ZOMBI'),
+  (SELECT REF(plebs) FROM PLEBS_OBJ plebs WHERE plebs.KOCUR.PSEUDO='PUSZYSTA')));
+INSERT INTO ELITA_OBJ VALUES (KOT_ELITA_TYPE(4,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='RAFA'),
+  (SELECT REF(plebs) FROM PLEBS_OBJ plebs WHERE plebs.KOCUR.PSEUDO='UCHO')));
+INSERT INTO ELITA_OBJ VALUES (KOT_ELITA_TYPE(5,(SELECT REF(KOCUR) FROM KOT_OBJ KOCUR WHERE KOCUR.pseudo='PLACEK'),
+  (SELECT
+                                                                                                                   REF(plebs) FROM PLEBS_OBJ plebs WHERE plebs.KOCUR.PSEUDO='ZERO')));
+
+
+
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(1,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='TYGRYS'),'2017-05-11','2017-06-12'));
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(2,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='LYSY'),'2017-05-11','2017-06-12'));
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(3,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='ZOMBI'),'2017-05-11','2017-06-12'));
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(4,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='RAFA'),'2017-05-11','2017-06-12'));
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(5,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='PLACEK'),
+  '2017-05-11','2017-06-12'));
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(6,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='TYGRYS'),'2017-05-12',null));
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(7,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='LYSY'),'2017-05-12',null));
+INSERT INTO KONTO_OBJ VALUES (KONTO_TYPE(8,(SELECT REF(elita) FROM ELITA_OBJ elita WHERE elita.KOCUR.pseudo='ZOMBI'),'2017-05-12',null));
+
+
